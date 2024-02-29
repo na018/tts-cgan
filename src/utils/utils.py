@@ -1,31 +1,31 @@
 import collections
+import io
 import logging
 import math
 import os
+import pathlib
 import time
+import warnings
 from datetime import datetime
+from typing import Union, Optional, List, Tuple, Text, BinaryIO
 
 import dateutil.tz
-import torch
-
-from typing import Union, Optional, List, Tuple, Text, BinaryIO
-import pathlib
-import torch
-import math
-import warnings
+import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageColor
+import torch
+from PIL import Image
+
 
 @torch.no_grad()
 def make_grid(
-    tensor: Union[torch.Tensor, List[torch.Tensor]],
-    nrow: int = 8,
-    padding: int = 2,
-    normalize: bool = False,
-    value_range: Optional[Tuple[int, int]] = None,
-    scale_each: bool = False,
-    pad_value: int = 0,
-    **kwargs
+        tensor: Union[torch.Tensor, List[torch.Tensor]],
+        nrow: int = 8,
+        padding: int = 2,
+        normalize: bool = False,
+        value_range: Optional[Tuple[int, int]] = None,
+        scale_each: bool = False,
+        pad_value: int = 0,
+        **kwargs
 ) -> torch.Tensor:
     """
     Make a grid of images.
@@ -120,10 +120,10 @@ def make_grid(
 
 @torch.no_grad()
 def save_image(
-    tensor: Union[torch.Tensor, List[torch.Tensor]],
-    fp: Union[Text, pathlib.Path, BinaryIO],
-    format: Optional[str] = None,
-    **kwargs
+        tensor: Union[torch.Tensor, List[torch.Tensor]],
+        fp: Union[Text, pathlib.Path, BinaryIO],
+        format: Optional[str] = None,
+        **kwargs
 ) -> None:
     """
     Save a given Tensor into an image file.
@@ -141,7 +141,7 @@ def save_image(
     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
     im = Image.fromarray(ndarr)
     im.save(fp, format=format)
-    
+
 
 def create_logger(log_dir, phase='train'):
     time_str = time.strftime('%Y-%m-%d-%H-%M')
@@ -194,6 +194,34 @@ def save_checkpoint(states, is_best, output_dir,
         torch.save(states, os.path.join(output_dir, 'checkpoint_best.pth'))
 
 
+def gen_plot(gen_net, epoch):
+    """Create a pyplot plot and save to buffer."""
+    synthetic_data = []
+    synthetic_labels = []
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    for i in range(10):
+        fake_noise = torch.FloatTensor(np.random.normal(0, 1, (1, 100))).to(device)
+        fake_label = torch.randint(0, 5, (1,)).to(device)
+        fake_sigs = gen_net(fake_noise, fake_label).to('cpu').detach().numpy()
+
+        synthetic_data.append(fake_sigs)
+        synthetic_labels.append(fake_label)
+
+    fig, axs = plt.subplots(2, 5, figsize=(20, 5))
+    fig.suptitle(f'Synthetic data at epoch {epoch}', fontsize=30)
+    for i in range(2):
+        for j in range(5):
+            axs[i, j].plot(synthetic_data[i * 5 + j][0][0][0][:])
+            axs[i, j].title.set_text(synthetic_labels[i * 5 + j])
+    buf = io.BytesIO()
+    plt.savefig(buf, format='jpeg')
+    buf.seek(0)
+    return buf
+
+    # weight init
+
 class RunningStats:
     def __init__(self, WIN_SIZE):
         self.mean = 0
@@ -240,3 +268,5 @@ class RunningStats:
 
     def __str__(self):
         return "Current window values: {}".format(list(self.window))
+
+

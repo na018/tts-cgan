@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument(
         '--max_iter',
         type=int,
-        default=None,
+        default=10,
         help='set the max iteration number')
     parser.add_argument(
         '-gen_bs',
